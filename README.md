@@ -1,0 +1,1 @@
+# Analise-de-mercado---GROK-IA
