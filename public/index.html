@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grok Market Intelligence</title>
+  <!-- Tailwind CSS via CDN + CSS Próprio -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-6">
+
+  <div class="max-w-2xl w-full space-y-6">
+    <!-- Cabeçalho -->
+    <header class="text-center">
+      <h1 class="text-3xl font-bold text-blue-400">Grok Market Intel 🚀</h1>
+      <p class="text-gray-400 text-sm mt-1">Análise de Tendências em Tempo Real via xAI</p>
+    </header>
+
+    <!-- Formulário de Entrada -->
+    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+      <label for="tema" class="block mb-2 font-medium">Informe o mercado ou nicho:</label>
+      <div class="flex gap-2">
+        <input 
+          type="text" 
+          id="tema" 
+          placeholder="Ex: Crochê, Carros Elétricos, Finanças" 
+          class="flex-1 bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+        >
+        <button 
+          id="btnBuscar" 
+          class="bg-blue-600 hover:bg-blue-500 font-bold px-6 py-3 rounded-lg transition disabled:opacity-50"
+        >
+          Analisar
+        </button>
+      </div>
+    </div>
+
+    <!-- Indicador de Carregamento -->
+    <div id="loading" class="hidden text-center py-6">
+      <div class="spinner inline-block h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
+      <p class="text-gray-400">Consultando o Grok e processando a rede em tempo real...</p>
+    </div>
+
+    <!-- Área de Exibição do Resultado -->
+    <div id="resultadoContainer" class="hidden bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg whitespace-pre-line text-gray-200">
+      <div id="resultadoTexto"></div>
+    </div>
+  </div>
+
+  <!-- Script JavaScript Externo -->
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+/* Customizações e Animações do Projeto */
+
+/* Animação do ícone de carregamento (Spinner) */
+.spinner {
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Suavização de exibição dos blocos de conteúdo */
+#resultadoContainer {
+  transition: opacity 0.3s ease-in-out;
+}
+
+/* Ajustes gerais de scroll e formatação de texto */
+#resultadoTexto {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+}
