@@ -44,9 +44,9 @@ class handler(BaseHTTPRequestHandler):
 
             user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
 
-            # 4. Requisição para a API do Groq Cloud (Usando o ID oficial do modelo: llama3-70b-8192)
+            # 4. Requisição para a API do Groq Cloud (Modelo ativo: llama-3.3-70b-versatile)
             payload = {
-                "model": "llama3-70b-8192",
+                "model": "llama-3.3-70b-versatile",
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
