@@ -44,9 +44,9 @@ class handler(BaseHTTPRequestHandler):
 
             user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
 
-            # 4. Requisição para a API do Groq Cloud com User-Agent para ignorar o bloqueio 1010
+            # 4. Requisição para a API do Groq Cloud (Usando o ID oficial do modelo: llama3-70b-8192)
             payload = {
-                "model": "llama-3.3-70b-versatile",
+                "model": "llama3-70b-8192",
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
