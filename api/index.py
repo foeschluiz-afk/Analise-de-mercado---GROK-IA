@@ -26,23 +26,25 @@ class handler(BaseHTTPRequestHandler):
                 }, 500)
                 return
 
-            # 3. Prompt estruturado para Inteligência de Mercado
+            # 3. Prompt C.A.R.O. estruturado com a instrução de imagem
             system_prompt = (
                 "Você é o 'GrokMarketIntel', um agente especialista em Inteligência de Mercado. "
                 "Sua tarefa é analisar tendências digitais recentes sobre o assunto solicitado "
                 "e entregar um relatório resumido e executivo em Português.\n"
-                "Mantenha tom profissional, direto e sem piadas.\n\n"
+                "Mantenha tom profissional, direto e sem piadas. Desconsidere spam, memes isolados e ironias.\n\n"
                 "Retorne a resposta estritamente no seguinte formato:\n"
                 "🚀 RELATÓRIO DE TENDÊNCIA EM ALTA\n"
                 "📌 Tema Principal: [Nome da peça, produto ou tópico em alta]\n"
                 "📊 Aprovação do Público: [Ex: 88% de aprovação / Alta demanda]\n"
                 "💡 Por que está em alta: [Explicação curta em 1 frase]\n"
-                "🔑 Destaques: [2 a 3 palavras-chave ou hashtags]"
+                "🔑 Destaques: [2 a 3 palavras-chave ou hashtags]\n\n"
+                "🖼️ PROMPT DA IMAGEM:\n"
+                "[Descrição detalhada em inglês de uma imagem conceitual e realista para ilustrar a tendência]"
             )
 
             user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
 
-            # 4. Requisição para o Groq usando os modelos ativos da sua conta
+            # 4. Requisição ao Groq
             modelos = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.1-8b-instant"]
             resposta_ia = None
             ultimo_erro = ""
