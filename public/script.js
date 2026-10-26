@@ -43,24 +43,23 @@ async function buscarTendencias() {
       </div>`;
     } else {
       let relatorio = data.resultado;
-      
-      // Se o Hugging Face gerou a imagem, usa o Base64, senão usa um fallback público
-      let srcImagem = data.imagem_b64;
-      if (!srcImagem) {
-        srcImagem = `https://picsum.photos/800/450?random=${Math.floor(Math.random() * 1000)}`;
-      }
+
+      // Gera um seed aleatório para o Picsum fornecer uma foto diferente a cada pesquisa
+      const randomSeed = Math.floor(Math.random() * 1000);
+      const urlPicsum = `https://picsum.photos/seed/${randomSeed}/800/450`;
 
       texto.innerHTML = `
         <div class="mb-6 whitespace-pre-line text-gray-200 leading-relaxed">${relatorio}</div>
         <div class="mt-6 border-t border-gray-700 pt-4">
           <h3 class="font-bold text-blue-400 mb-3 flex items-center gap-2">
-            🎨 <span>Imagem Conceitual Gerada em Tempo Real (Hugging Face):</span>
+            🖼️ <span>Conceito Visual de Mercado (Picsum HD):</span>
           </h3>
           <div class="relative overflow-hidden rounded-lg border border-gray-700 bg-gray-900 min-h-[250px] flex items-center justify-center">
             <img 
-              src="${srcImagem}" 
-              alt="Ilustração da tendência: ${tema}" 
+              src="${urlPicsum}" 
+              alt="Imagem conceitual de mercado para: ${tema}" 
               class="w-full h-auto object-cover rounded-lg shadow-md"
+              loading="lazy"
             />
           </div>
         </div>

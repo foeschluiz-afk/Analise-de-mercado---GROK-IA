@@ -1,6 +1,5 @@
 import os
 import json
-import base64
 from http.server import BaseHTTPRequestHandler
 import urllib.request
 import urllib.error
@@ -18,16 +17,16 @@ class handler(BaseHTTPRequestHandler):
 
             tema = body.get('tema', 'Geral')
 
-            # 2. Obter chave do Groq
+            # 2. Obter a chave de API do Groq
             api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("XAI_API_KEY")
             
             if not api_key:
                 self._send_json({
-                    "error": "Chave GROQ_API_KEY não foi encontrada nas variáveis da Vercel."
+                    "error": "Chave de API (GROQ_API_KEY) não foi encontrada nas variáveis de ambiente da Vercel."
                 }, 500)
                 return
 
-            # 3. Prompt para inteligência de mercado
+            # 3. Prompt estruturado para Inteligência de Mercado
             system_prompt = (
                 "Você é o 'GrokMarketIntel', um agente especialista em Inteligência de Mercado. "
                 "Sua tarefa é analisar tendências digitais recentes sobre o assunto solicitado "
@@ -38,16 +37,15 @@ class handler(BaseHTTPRequestHandler):
                 "📌 Tema Principal: [Nome da peça, produto ou tópico em alta]\n"
                 "📊 Aprovação do Público: [Ex: 88% de aprovação / Alta demanda]\n"
                 "💡 Por que está em alta: [Explicação curta em 1 frase]\n"
-                "🔑 Destaques: [2 a 3 palavras-chave ou hashtags]\n\n"
-                "🖼️ PROMPT DA IMAGEM:\n"
-                "[Descrição em inglês detalhada de uma imagem conceitual e realista para ilustrar a tendência]"
+                "🔑 Destaques: [2 a 3 palavras-chave ou hashtags]"
             )
 
             user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
 
-            # 4. Requisição ao Groq para o Relatório de Texto
+            # 4. Requisição para o Groq usando os modelos ativos da sua conta
             modelos = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.1-8b-instant"]
             resposta_ia = None
+            ultimo_erro = ""
 
             for modelo in modelos:
                 payload = {
@@ -76,50 +74,17 @@ class handler(BaseHTTPRequestHandler):
                         result = json.loads(response.read().decode('utf-8'))
                         resposta_ia = result['choices'][0]['message']['content']
                         break
-                except Exception:
+                except urllib.error.HTTPError as e:
+                    ultimo_erro = e.read().decode('utf-8')
                     continue
 
-            if not resposta_ia:
-                self._send_json({"error": "Não foi possível conectar aos modelos do Groq."}, 500)
-                return
-
-            # 5. Extração do prompt para gerar a imagem
-            prompt_imagem = tema
-            if "PROMPT DA IMAGEM:" in resposta_ia:
-                prompt_imagem = resposta_ia.split("PROMPT DA IMAGEM:")[1].strip()
-
-            # 6. Geração de Imagem via Hugging Face Inference API (Modelo FLUX.1-schnell / Stable Diffusion)
-            image_b64 = self.gerar_imagem_huggingface(prompt_imagem)
-
-            # 7. Retorna o texto e a imagem em formato base64
-            self._send_json({
-                "resultado": resposta_ia,
-                "imagem_b64": image_b64
-            }, 200)
+            if resposta_ia:
+                self._send_json({"resultado": resposta_ia}, 200)
+            else:
+                self._send_json({"error": f"Erro na API do Groq: {ultimo_erro}"}, 500)
 
         except Exception as e:
             self._send_json({"error": f"Erro interno no servidor: {str(e)}"}, 500)
-
-    def gerar_imagem_huggingface(self, prompt):
-        try:
-            # Modelo FLUX.1-schnell público e de alta velocidade no Hugging Face
-            url_hf = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
-            
-            # Token de acesso Hugging Face (opcional, mas recomendado nas variáveis da Vercel: HF_TOKEN)
-            hf_token = os.environ.get("HF_TOKEN", "")
-            
-            headers = {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
-            if hf_token:
-                headers["Authorization"] = f"Bearer {hf_token}"
-
-            data_hf = json.dumps({"inputs": prompt}).encode('utf-8')
-            req_hf = urllib.request.Request(url_hf, data=data_hf, headers=headers, method="POST")
-
-            with urllib.request.urlopen(req_hf, timeout=15) as resp:
-                image_bytes = resp.read()
-                return "data:image/jpeg;base64," + base64.b64encode(image_bytes).decode('utf-8')
-        except Exception:
-            return None  # Se falhar ou expirar tempo, retorna None sem quebrar a resposta de texto
 
     def _send_json(self, data, status_code):
         self.send_response(status_code)
