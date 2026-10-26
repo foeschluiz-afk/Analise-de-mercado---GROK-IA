@@ -17,32 +17,37 @@ class handler(BaseHTTPRequestHandler):
 
             tema = body.get('tema', 'Geral')
 
-            # 2. Verificar a chave de API nas variáveis de ambiente
-            api_key = os.environ.get("XAI_API_KEY")
+            # 2. Obter a chave de API do Groq das variáveis de ambiente
+            # (Procura por GROQ_API_KEY ou reaproveita XAI_API_KEY se você não alterou o nome na Vercel)
+            api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("XAI_API_KEY")
+            
             if not api_key:
-                self._send_json({"error": "Chave XAI_API_KEY não foi encontrada nas variáveis de ambiente da Vercel."}, 500)
+                self._send_json({
+                    "error": "Chave de API (GROQ_API_KEY ou XAI_API_KEY) não foi encontrada nas variáveis de ambiente da Vercel."
+                }, 500)
                 return
 
-            # 3. Construção dos Prompts
+            # 3. Prompt C.A.R.O. estruturado para Inteligência de Mercado
             system_prompt = (
-                "Você é o 'GrokMarketIntel', um agente de Inteligência de Mercado. "
-                "Sua tarefa é analisar tendências em tempo real e entregar um relatório resumido e executivo em Português.\n"
-                "Mantenha tom profissional, direto e sem piadas. Desconsidere spam e ironia.\n\n"
+                "Você é o 'GrokMarketIntel', um agente especialista em Inteligência de Mercado. "
+                "Sua tarefa é analisar tendências digitais recentes sobre o assunto solicitado "
+                "e entregar um relatório resumido e executivo em Português.\n"
+                "Mantenha tom profissional, direto e sem piadas. Desconsidere spam, memes isolados e ironias.\n\n"
                 "Retorne a resposta estritamente no seguinte formato:\n"
                 "🚀 RELATÓRIO DE TENDÊNCIA EM ALTA\n"
                 "📌 Tema Principal: [Nome da peça, produto ou tópico em alta]\n"
                 "📊 Aprovação do Público: [Ex: 88% de aprovação / Alta demanda]\n"
                 "💡 Por que está em alta: [Explicação curta em 1 frase]\n"
-                "🔑 Destaques: [2 a 3 palavras-chave]\n\n"
+                "🔑 Destaques: [2 a 3 palavras-chave ou hashtags]\n\n"
                 "🖼️ PROMPT DA IMAGEM:\n"
-                "[Descrição detalhada em português de uma imagem conceitual para ilustrar a tendência]"
+                "[Descrição detalhada em português de uma imagem conceitual e realista para ilustrar a tendência]"
             )
 
-            user_prompt = f"Analise as principais tendências recentes em tempo real sobre: {tema}"
+            user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
 
-            # 4. Requisição para a API do Grok (xAI)
+            # 4. Requisição para a API Gratuita do Groq Cloud (Usando Llama 3.3 70B)
             payload = {
-                "model": "grok-beta",
+                "model": "llama-3.3-70b-versatile",
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -52,7 +57,7 @@ class handler(BaseHTTPRequestHandler):
 
             data = json.dumps(payload).encode('utf-8')
             req = urllib.request.Request(
-                "https://api.x.ai/v1/chat/completions",
+                "https://api.groq.com/openai/v1/chat/completions",
                 data=data,
                 headers={
                     "Content-Type": "application/json",
@@ -63,14 +68,14 @@ class handler(BaseHTTPRequestHandler):
 
             with urllib.request.urlopen(req) as response:
                 result = json.loads(response.read().decode('utf-8'))
-                resposta_grok = result['choices'][0]['message']['content']
-                self._send_json({"resultado": resposta_grok}, 200)
+                resposta_ia = result['choices'][0]['message']['content']
+                self._send_json({"resultado": resposta_ia}, 200)
 
         except urllib.error.HTTPError as e:
             error_body = e.read().decode('utf-8')
-            self._send_json({"error": f"Erro na API da xAI ({e.code}): {error_body}"}, 500)
+            self._send_json({"error": f"Erro na API do Groq ({e.code}): {error_body}"}, 500)
         except Exception as e:
-            self._send_json({"error": f"Erro interno do servidor: {str(e)}"}, 500)
+            self._send_json({"error": f"Erro interno no servidor: {str(e)}"}, 500)
 
     def _send_json(self, data, status_code):
         self.send_response(status_code)
