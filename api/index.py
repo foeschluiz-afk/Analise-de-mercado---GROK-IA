@@ -44,36 +44,47 @@ class handler(BaseHTTPRequestHandler):
 
             user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
 
-            # 4. Requisição para a API do Groq Cloud (Modelo 100% universal e gratuito: llama-3.1-8b-instant)
-            payload = {
-                "model": "llama-3.1-8b-instant",
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                "temperature": 0.3
-            }
+            # Lista de modelos suportados no Groq para tentar sequencialmente
+            modelos = ["mixtral-8x7b-32768", "gemma2-9b-it"]
+            resposta_ia = None
+            ultimo_erro = ""
 
-            data = json.dumps(payload).encode('utf-8')
-            req = urllib.request.Request(
-                "https://api.groq.com/openai/v1/chat/completions",
-                data=data,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {api_key}",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                },
-                method="POST"
-            )
+            for modelo in modelos:
+                payload = {
+                    "model": modelo,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    "temperature": 0.3
+                }
 
-            with urllib.request.urlopen(req) as response:
-                result = json.loads(response.read().decode('utf-8'))
-                resposta_ia = result['choices'][0]['message']['content']
+                data = json.dumps(payload).encode('utf-8')
+                req = urllib.request.Request(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    data=data,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {api_key}",
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    },
+                    method="POST"
+                )
+
+                try:
+                    with urllib.request.urlopen(req) as response:
+                        result = json.loads(response.read().decode('utf-8'))
+                        resposta_ia = result['choices'][0]['message']['content']
+                        break # Sucesso! Sai do loop.
+                except urllib.error.HTTPError as e:
+                    ultimo_erro = e.read().decode('utf-8')
+                    continue # Tenta o próximo modelo da lista
+
+            if resposta_ia:
                 self._send_json({"resultado": resposta_ia}, 200)
+            else:
+                self._send_json({"error": f"Erro na API do Groq: {ultimo_erro}"}, 500)
 
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode('utf-8')
-            self._send_json({"error": f"Erro na API do Groq ({e.code}): {error_body}"}, 500)
         except Exception as e:
             self._send_json({"error": f"Erro interno no servidor: {str(e)}"}, 500)
 
