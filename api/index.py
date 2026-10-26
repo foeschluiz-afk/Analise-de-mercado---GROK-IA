@@ -7,7 +7,7 @@ import urllib.error
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
-            # 1. Ler o corpo da requisição de forma segura
+            # 1. Leitura segura do corpo da requisição
             content_length = int(self.headers.get('Content-Length', 0))
             if content_length > 0:
                 post_data = self.rfile.read(content_length)
@@ -17,7 +17,7 @@ class handler(BaseHTTPRequestHandler):
 
             tema = body.get('tema', 'Geral')
 
-            # 2. Obter a chave de API do Groq das variáveis de ambiente
+            # 2. Leitura da chave de API
             api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("XAI_API_KEY")
             
             if not api_key:
@@ -26,7 +26,7 @@ class handler(BaseHTTPRequestHandler):
                 }, 500)
                 return
 
-            # 3. Prompt C.A.R.O. estruturado para Inteligência de Mercado
+            # 3. Prompt C.A.R.O. para Inteligência de Mercado
             system_prompt = (
                 "Você é o 'GrokMarketIntel', um agente especialista em Inteligência de Mercado. "
                 "Sua tarefa é analisar tendências digitais recentes sobre o assunto solicitado "
@@ -44,8 +44,8 @@ class handler(BaseHTTPRequestHandler):
 
             user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
 
-            # Lista de modelos suportados no Groq para tentar sequencialmente
-            modelos = ["mixtral-8x7b-32768", "gemma2-9b-it"]
+            # Lista dos modelos visíveis e ativos no seu painel Groq
+            modelos = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen-3.8-27b"]
             resposta_ia = None
             ultimo_erro = ""
 
@@ -75,10 +75,10 @@ class handler(BaseHTTPRequestHandler):
                     with urllib.request.urlopen(req) as response:
                         result = json.loads(response.read().decode('utf-8'))
                         resposta_ia = result['choices'][0]['message']['content']
-                        break # Sucesso! Sai do loop.
+                        break  # Sucesso! Sai do loop.
                 except urllib.error.HTTPError as e:
                     ultimo_erro = e.read().decode('utf-8')
-                    continue # Tenta o próximo modelo da lista
+                    continue
 
             if resposta_ia:
                 self._send_json({"resultado": resposta_ia}, 200)
