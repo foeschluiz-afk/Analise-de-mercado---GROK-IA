@@ -18,7 +18,6 @@ class handler(BaseHTTPRequestHandler):
             tema = body.get('tema', 'Geral')
 
             # 2. Obter a chave de API do Groq das variáveis de ambiente
-            # (Procura por GROQ_API_KEY ou reaproveita XAI_API_KEY se você não alterou o nome na Vercel)
             api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("XAI_API_KEY")
             
             if not api_key:
@@ -45,7 +44,7 @@ class handler(BaseHTTPRequestHandler):
 
             user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
 
-            # 4. Requisição para a API Gratuita do Groq Cloud (Usando Llama 3.3 70B)
+            # 4. Requisição para a API do Groq Cloud com User-Agent para ignorar o bloqueio 1010
             payload = {
                 "model": "llama-3.3-70b-versatile",
                 "messages": [
@@ -61,7 +60,8 @@ class handler(BaseHTTPRequestHandler):
                 data=data,
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {api_key}"
+                    "Authorization": f"Bearer {api_key}",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                 },
                 method="POST"
             )
