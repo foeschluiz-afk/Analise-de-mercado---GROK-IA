@@ -2,10 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnBuscar = document.getElementById('btnBuscar');
   const temaInput = document.getElementById('tema');
 
-  // Disparar busca ao clicar no botão
   btnBuscar.addEventListener('click', buscarTendencias);
 
-  // Disparar busca ao pressionar 'Enter' no input
   temaInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       buscarTendencias();
@@ -26,14 +24,12 @@ async function buscarTendencias() {
     return;
   }
 
-  // Estado de Carregamento (UI)
   btn.disabled = true;
   loading.classList.remove('hidden');
   container.classList.add('hidden');
-  texto.innerText = '';
+  texto.innerHTML = '';
 
   try {
-    // Requisição enviada para a Serverless Function em Python no Vercel
     const response = await fetch('/api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -45,7 +41,26 @@ async function buscarTendencias() {
     if (data.error) {
       texto.innerText = '⚠️ Erro ao processar: ' + data.error;
     } else {
-      texto.innerText = data.resultado;
+      // 1. Exibir o texto do relatório
+      let relatorio = data.resultado;
+      
+      // 2. Extrair o prompt da imagem do relatório para gerar a foto
+      let promptImagem = tema; 
+      if (relatorio.includes("PROMPT DA IMAGEM:")) {
+        promptImagem = relatorio.split("PROMPT DA IMAGEM:")[1].trim();
+      }
+
+      // 3. Criar a URL da imagem via Pollinations.ai (Gratuito e sem API Key)
+      const urlImagem = `https://pollinations.ai/p/${encodeURIComponent(promptImagem)}?width=800&height=450&seed=${Math.floor(Math.random() * 1000)}&nologo=true`;
+
+      // 4. Inserir o relatório e a imagem gerada no HTML
+      texto.innerHTML = `
+        <div class="mb-4 whitespace-pre-line">${relatorio}</div>
+        <div class="mt-6 border-t border-gray-700 pt-4">
+          <h3 class="font-bold text-blue-400 mb-2">🎨 Imagem Gerada em Tempo Real:</h3>
+          <img src="${urlImagem}" alt="Ilustração da tendência" class="w-full rounded-lg shadow-md border border-gray-700 loading-bg min-h-[250px] object-cover">
+        </div>
+      `;
     }
     
     container.classList.remove('hidden');
@@ -54,7 +69,6 @@ async function buscarTendencias() {
     alert('Erro de conexão ao tentar contactar o servidor.');
     console.error(err);
   } finally {
-    // Restaurar estado da UI
     btn.disabled = false;
     loading.classList.add('hidden');
   }
