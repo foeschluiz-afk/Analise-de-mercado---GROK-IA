@@ -43,29 +43,24 @@ async function buscarTendencias() {
       </div>`;
     } else {
       let relatorio = data.resultado;
-
-      // Extrai o prompt gerado pela IA
-      let promptImagem = tema;
-      if (relatorio.includes("PROMPT DA IMAGEM:")) {
-        promptImagem = relatorio.split("PROMPT DA IMAGEM:")[1].trim();
+      
+      // Se o Hugging Face gerou a imagem, usa o Base64, senão usa um fallback público
+      let srcImagem = data.imagem_b64;
+      if (!srcImagem) {
+        srcImagem = `https://picsum.photos/800/450?random=${Math.floor(Math.random() * 1000)}`;
       }
-
-      // OPÇÃO GRATUITA SEM CHAVE (Pollinations / ImageGen alternativo público)
-      const randomSeed = Math.floor(Math.random() * 99999);
-      const urlImagem = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptImagem)}?width=800&height=450&seed=${randomSeed}&nologo=true`;
 
       texto.innerHTML = `
         <div class="mb-6 whitespace-pre-line text-gray-200 leading-relaxed">${relatorio}</div>
         <div class="mt-6 border-t border-gray-700 pt-4">
           <h3 class="font-bold text-blue-400 mb-3 flex items-center gap-2">
-            🎨 <span>Imagem Conceitual Gerada em Tempo Real:</span>
+            🎨 <span>Imagem Conceitual Gerada em Tempo Real (Hugging Face):</span>
           </h3>
-          <div class="relative overflow-hidden rounded-lg border border-gray-700 bg-gray-900 min-h-[250px]">
+          <div class="relative overflow-hidden rounded-lg border border-gray-700 bg-gray-900 min-h-[250px] flex items-center justify-center">
             <img 
-              src="${urlImagem}" 
+              src="${srcImagem}" 
               alt="Ilustração da tendência: ${tema}" 
               class="w-full h-auto object-cover rounded-lg shadow-md"
-              onerror="this.src='https://picsum.photos/800/450?blur=1'"
             />
           </div>
         </div>
