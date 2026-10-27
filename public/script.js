@@ -23,7 +23,6 @@ async function buscarTendencias() {
     return;
   }
 
-  // Desativa o botão e exibe o estado de loading
   btn.disabled = true;
   loading.classList.remove('hidden');
   loading.classList.add('flex');
@@ -31,7 +30,6 @@ async function buscarTendencias() {
   texto.innerHTML = '';
 
   try {
-    // Requisição ao Backend Serverless da Vercel
     const response = await fetch('/api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -47,28 +45,25 @@ async function buscarTendencias() {
         </div>`;
     } else {
       let relatorio = data.resultado;
+      let urlImagem = `https://picsum.photos/seed/${encodeURIComponent(tema)}/800/450`;
 
-      // 1. Extrair a descrição de imagem do relatório
-      let promptImagem = tema;
-      if (relatorio.includes("PROMPT DA IMAGEM:")) {
-        promptImagem = relatorio.split("PROMPT DA IMAGEM:")[1].trim();
+      // Se o Gemini retornou a linha do link, separa do texto
+      if (relatorio.includes("LINK_IMAGEM:")) {
+        const partes = relatorio.split("LINK_IMAGEM:");
+        relatorio = partes[0].trim();
+        urlImagem = partes[1].trim();
       }
 
-      // 2. Montar a URL da imagem no Pollinations.ai
-      const randomSeed = Math.floor(Math.random() * 99999);
-      const urlPollinations = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptImagem)}?width=800&height=450&seed=${randomSeed}&nologo=true`;
-
-      // 3. Renderizar relatório e elemento visual no DOM
       texto.innerHTML = `
         <div class="mb-6 whitespace-pre-line text-gray-200 leading-relaxed text-base">${relatorio}</div>
         <div class="mt-8 border-t border-gray-700/80 pt-6">
           <h3 class="font-bold text-blue-400 mb-3 flex items-center gap-2 text-lg">
-            🎨 <span>Conceito Visual Gerado em Tempo Real (Pollinations):</span>
+            🖼️ <span>Imagem Relevante do Mercado:</span>
           </h3>
           <div class="relative overflow-hidden rounded-xl border border-gray-700 bg-gray-900 min-h-[250px] flex items-center justify-center">
             <img 
-              src="${urlPollinations}" 
-              alt="Ilustração da tendência: ${tema}" 
+              src="${urlImagem}" 
+              alt="Conceito visual para: ${tema}" 
               class="w-full h-auto object-cover rounded-xl shadow-lg transition-opacity duration-300"
               loading="lazy"
               onerror="this.src='https://picsum.photos/800/450'"
