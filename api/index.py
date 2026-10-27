@@ -39,7 +39,7 @@ class handler(BaseHTTPRequestHandler):
                 "💡 Por que está em alta: [Explicação curta em 1 frase]\n"
                 "🔑 Destaques: [2 a 3 palavras-chave ou hashtags]\n\n"
                 "🖼️ PROMPT DA IMAGEM:\n"
-                "[Descrição real da imagem]"
+                "[Descrição detalhada em inglês de uma imagem conceitual e realista para ilustrar a tendência]"
             )
 
             user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
