@@ -44,7 +44,7 @@ class handler(BaseHTTPRequestHandler):
             user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
 
             # 4. Modelos oficiais suportados na API v1beta
-            modelos = ["gemini-1.5-flash", "gemini-1.5-pro"]
+            modelos = ["gemini-3.8-flash", "gemini-3.6-flash"]
             resposta_ia = None
             ultimo_erro = ""
 
