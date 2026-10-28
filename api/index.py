@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from http.server import BaseHTTPRequestHandler
 import urllib.request
 import urllib.error
@@ -7,7 +8,7 @@ import urllib.error
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
-            # 1. Leitura do corpo da requisição
+            # 1. Leitura segura do corpo da requisição
             content_length = int(self.headers.get('Content-Length', 0))
             if content_length > 0:
                 post_data = self.rfile.read(content_length)
@@ -43,8 +44,8 @@ class handler(BaseHTTPRequestHandler):
 
             user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
 
-            # 4. Modelos estáveis suportados pela API v1beta do Gemini
-            modelos = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.5-pro"]
+            # 4. Lista de identificadores de modelos da API v1beta do Gemini
+            modelos = ["gemini-2.5-flash", "gemini-1.5-flash"]
             resposta_ia = None
             ultimo_erro = ""
 
