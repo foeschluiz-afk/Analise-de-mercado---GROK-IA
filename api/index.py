@@ -26,7 +26,7 @@ class handler(BaseHTTPRequestHandler):
                 }, 500)
                 return
 
-            # 3. Instrução do sistema para o Gemini
+            # 3. Instrução de sistema para o Gemini
             system_instruction = (
                 "Você é o 'MarketIntel AI', um agente especialista em Inteligência de Mercado. "
                 "Sua tarefa é analisar tendências digitais recentes sobre o assunto solicitado "
@@ -38,18 +38,18 @@ class handler(BaseHTTPRequestHandler):
                 "📊 Aprovação do Público: [Ex: 88% de aprovação / Alta demanda]\n"
                 "💡 Por que está em alta: [Explicação curta em 1 frase]\n"
                 "🔑 Destaques: [2 a 3 palavras-chave ou hashtags]\n\n"
-                "🔗 LINK_IMAGEM: https://picsum.photos/seed/[palavra_chave_em_ingles_sem_espaço]/800/450"
+                "🔗 LINK_IMAGEM: [https://picsum.photos/seed/](https://picsum.photos/seed/)[palavra_chave_em_ingles_sem_espaço]/800/450"
             )
 
             user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
 
-            # 4. Requisição à API do Google Gemini com os modelos atualizados
-            modelos = ["gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro-latest"]
+            # 4. Modelos estáveis suportados pela API v1beta do Gemini
+            modelos = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.5-pro"]
             resposta_ia = None
             ultimo_erro = ""
 
             for modelo in modelos:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+                url = f"[https://generativelanguage.googleapis.com/v1beta/models/](https://generativelanguage.googleapis.com/v1beta/models/){modelo}:generateContent?key={api_key}"
                 
                 payload = {
                     "contents": [
