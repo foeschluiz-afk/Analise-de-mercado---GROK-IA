@@ -1,99 +1,412 @@
+
 import os
 import json
-from http.server import BaseHTTPRequestHandler
+import re
+import unicodedata
 import urllib.request
 import urllib.error
 
-class handler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        try:
-            # 1. Leitura segura da requisição
-            content_length = int(self.headers.get('Content-Length', 0))
-            if content_length > 0:
-                post_data = self.rfile.read(content_length)
-                body = json.loads(post_data.decode('utf-8'))
-            else:
-                body = {}
+from http.server import BaseHTTPRequestHandler
 
-            tema = body.get('tema', 'Geral')
 
-            # 2. Obter a chave de API do Gemini
-            api_key = os.environ.get("GEMINI_API_KEY")
-            
-            if not api_key:
-                self._send_json({
-                    "error": "A variável GEMINI_API_KEY não foi configurada nas Environment Variables da Vercel."
-                }, 500)
-                return
+# =========================================================
+# MARKETINTEL AI — API COMPLETA PARA VERCEL
+# =========================================================
 
-            # 3. Prompt de Sistema
-            system_instruction = (
-                "Você é o 'MarketIntel AI', um agente especialista em Inteligência de Mercado. "
-                "Sua tarefa é analisar tendências digitais recentes sobre o assunto solicitado "
-                "e entregar um relatório resumido e executivo em Português.\n"
-                "Mantenha um tom profissional, direto e objetivo.\n\n"
-                "Retorne a resposta estritamente no seguinte formato:\n"
-                "🚀 RELATÓRIO DE TENDÊNCIA EM ALTA\n"
-                "📌 Tema Principal: [Nome da peça, produto ou tópico em alta]\n"
-                "📊 Aprovação do Público: [Ex: 88% de aprovação / Alta demanda]\n"
-                "💡 Por que está em alta: [Explicação curta em 1 frase]\n"
-                "🔑 Destaques: [2 a 3 palavras-chave ou hashtags]\n\n"
-                "🔗 LINK_IMAGEM: https://picsum.photos/seed/[palavra_chave_em_ingles_sem_espaço]/800/450"
-            )
+GEMINI_API_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+)
 
-            user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
+# O primeiro modelo é configurável nas Environment Variables.
+DEFAULT_MODEL = os.environ.get(
+    "GEMINI_MODEL", "gemini-2.5-flash"
+)
 
-            # 4. Modelos oficiais suportados na API v1beta
-            modelos = ["gemini-3.8-flash", "gemini-3.6-flash"]
-            resposta_ia = None
-            ultimo_erro = ""
+FALLBACK_MODELS = [
+    DEFAULT_MODEL,
+    "gemini-2.5-flash",
+]
 
-            for modelo in modelos:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
-                
-                payload = {
-                    "contents": [
-                        {
-                            "role": "user",
-                            "parts": [{"text": f"{system_instruction}\n\nSolicitação do usuário: {user_prompt}"}]
-                        }
-                    ],
-                    "generationConfig": {
-                        "temperature": 0.3
-                    }
+MAX_BODY_SIZE = 20_000
+MAX_TEMA_SIZE = 500
+
+
+SYSTEM_INSTRUCTION = """
+Você é o MarketIntel AI, especialista em inteligência de mercado,
+tendências digitais, comportamento do consumidor e oportunidades
+comerciais.
+
+OBJETIVO:
+Analisar o tema solicitado utilizando pesquisa na web quando a
+ferramenta de pesquisa estiver disponível. Priorize informações
+recentes, fontes confiáveis e dados verificáveis.
+
+REGRAS:
+1. Responda em português brasileiro.
+2. Seja profissional, direto e objetivo.
+3. Diferencie fatos verificados de estimativas.
+4. Nunca invente percentuais de aprovação, vendas, pesquisas,
+   fontes, URLs ou estatísticas.
+5. Se não encontrar dados quantitativos confiáveis, escreva
+   "Não há dados suficientes para quantificar".
+6. Identifique o período das informações quando disponível.
+7. Inclua fontes e links reais consultados, quando disponíveis.
+8. Se não conseguir verificar a atualidade, informe essa limitação.
+9. Não apresente uma tendência como comprovada sem evidências.
+10. A imagem solicitada é ilustrativa, não uma fotografia
+    necessariamente correspondente ao produto analisado.
+
+FORMATO OBRIGATÓRIO DO RELATÓRIO:
+
+🚀 RELATÓRIO DE TENDÊNCIA EM ALTA
+
+📌 Tema Principal:
+[Produto, serviço, comportamento ou tópico analisado]
+
+📈 Situação da Tendência:
+[Em alta, emergente, estável, em queda ou evidências insuficientes]
+
+📊 Aprovação do Público:
+[Percentual apenas se houver fonte verificável; caso contrário,
+descreva qualitativamente ou informe que faltam dados]
+
+💡 Por que está em alta:
+[Explicação objetiva baseada nas evidências encontradas]
+
+🎯 Público-Alvo:
+[Perfil provável do consumidor]
+
+💰 Oportunidade de Mercado:
+[Possíveis oportunidades comerciais, sem prometer resultados]
+
+🔑 Destaques:
+[Palavras-chave e hashtags relevantes]
+
+⚠️ Nível de Confiança:
+[Alto, moderado ou baixo, com justificativa breve]
+
+🔗 Fontes:
+[URLs reais consultadas, com o nome das fontes e datas quando
+disponíveis. Não invente links.]
+
+🖼️ LINK_IMAGEM:
+[URL de imagem ilustrativa relacionada ao tema]
+"""
+
+
+def limpar_texto(valor):
+    """Normaliza texto recebido e remove caracteres de controle."""
+    if not isinstance(valor, str):
+        return ""
+
+    return "".join(
+        caractere
+        for caractere in valor.strip()
+        if caractere in "\n\t" or ord(caractere) >= 32
+    )
+
+
+def criar_link_imagem(tema):
+    """
+    Cria um endereço de imagem ilustrativa estável.
+    A imagem não representa necessariamente o produto real.
+    """
+    texto = unicodedata.normalize("NFKD", tema)
+    texto = texto.encode("ascii", "ignore").decode("ascii")
+    palavra = re.sub(r"[^a-zA-Z0-9]+", "-", texto).strip("-")
+    palavra = (palavra or "market-trend")[:70].lower()
+
+    return (
+        "https://picsum.photos/seed/"
+        + palavra
+        + "/800/450"
+    )
+
+
+def extrair_resposta(resultado):
+    """Extrai o texto gerado e detecta respostas vazias."""
+    candidatos = resultado.get("candidates", [])
+
+    if not candidatos:
+        feedback = resultado.get("promptFeedback", {})
+        motivo = feedback.get("blockReason", "Resposta vazia")
+        raise ValueError(f"O Gemini não retornou conteúdo: {motivo}")
+
+    partes = candidatos[0].get("content", {}).get("parts", [])
+
+    textos = [
+        parte["text"]
+        for parte in partes
+        if isinstance(parte.get("text"), str)
+    ]
+
+    resposta = "\n".join(textos).strip()
+
+    if not resposta:
+        raise ValueError("O Gemini retornou uma resposta sem texto.")
+
+    return resposta
+
+
+def consultar_gemini(api_key, tema):
+    """Consulta o Gemini com pesquisa na web e modelos alternativos."""
+
+    modelos = list(dict.fromkeys(FALLBACK_MODELS))
+    ultimo_erro = "Nenhum modelo disponível."
+
+    prompt_usuario = (
+        f"Analise as tendências de mercado relacionadas a: {tema}\n\n"
+        "Pesquise informações recentes usando a ferramenta de pesquisa "
+        "na web, se disponível para o modelo. Priorize dados verificáveis, "
+        "fontes confiáveis e oportunidades comerciais relevantes. "
+        "Não invente métricas ou fontes. Gere o relatório no formato "
+        "definido nas instruções do sistema."
+    )
+
+    for modelo in modelos:
+        url = GEMINI_API_URL + modelo + ":generateContent"
+
+        payload = {
+            "systemInstruction": {
+                "parts": [
+                    {"text": SYSTEM_INSTRUCTION}
+                ]
+            },
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": prompt_usuario}
+                    ]
                 }
+            ],
+            "tools": [
+                {
+                    "google_search": {}
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.2,
+                "maxOutputTokens": 1800
+            }
+        }
 
-                data = json.dumps(payload).encode('utf-8')
-                req = urllib.request.Request(
-                    url,
-                    data=data,
-                    headers={"Content-Type": "application/json"},
-                    method="POST"
+        request_data = json.dumps(
+            payload, ensure_ascii=False
+        ).encode("utf-8")
+
+        req = urllib.request.Request(
+            url,
+            data=request_data,
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": api_key,
+            },
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=50) as response:
+                resultado = json.loads(
+                    response.read().decode("utf-8")
                 )
 
-                try:
-                    with urllib.request.urlopen(req) as response:
-                        result = json.loads(response.read().decode('utf-8'))
-                        resposta_ia = result['candidates'][0]['content']['parts'][0]['text']
-                        break
-                except urllib.error.HTTPError as e:
-                    ultimo_erro = e.read().decode('utf-8')
-                    continue
-                except Exception as e:
-                    ultimo_erro = str(e)
-                    continue
+            texto = extrair_resposta(resultado)
 
-            if resposta_ia:
-                self._send_json({"resultado": resposta_ia}, 200)
-            else:
-                self._send_json({"error": f"Erro na API do Gemini: {ultimo_erro}"}, 500)
+            return {
+                "resultado": texto,
+                "tema": tema,
+                "modelo": modelo,
+                "imagem": criar_link_imagem(tema),
+                "status": "sucesso",
+            }
 
-        except Exception as e:
-            self._send_json({"error": f"Erro no servidor Python: {str(e)}"}, 500)
+        except urllib.error.HTTPError as erro:
+            detalhes = erro.read().decode(
+                "utf-8", errors="replace"
+            )
 
-    def _send_json(self, data, status_code):
+            ultimo_erro = detalhes[:1500]
+
+            # Falhas de autenticação e limites de uso não devem
+            # ser ocultados por tentativas repetidas com outros modelos.
+            if erro.code in (400, 401, 403, 429):
+                if erro.code in (401, 403):
+                    break
+
+                if erro.code == 429:
+                    break
+
+                # Erros 400 podem indicar ferramenta incompatível
+                # ou parâmetros inválidos. Tenta o próximo modelo.
+                continue
+
+            # Modelo inexistente, erro temporário ou indisponibilidade.
+            continue
+
+        except (urllib.error.URLError, TimeoutError) as erro:
+            ultimo_erro = str(erro)
+            continue
+
+        except (ValueError, KeyError, TypeError) as erro:
+            ultimo_erro = str(erro)
+            continue
+
+        except Exception as erro:
+            ultimo_erro = str(erro)
+            continue
+
+    raise RuntimeError(
+        "Não foi possível gerar o relatório. "
+        "Verifique a chave, os modelos disponíveis, as permissões "
+        "da API e os limites de utilização. Detalhes: "
+        + ultimo_erro[:1000]
+    )
+
+
+class handler(BaseHTTPRequestHandler):
+
+    def _send_json(self, data, status_code=200):
+        resposta = json.dumps(
+            data, ensure_ascii=False
+        ).encode("utf-8")
+
         self.send_response(status_code)
-        self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header(
+            "Content-Type", "application/json; charset=utf-8"
+        )
+        self.send_header("Content-Length", str(len(resposta)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header(
+            "Access-Control-Allow-Methods", "POST, OPTIONS, GET"
+        )
+        self.send_header(
+            "Access-Control-Allow-Headers",
+            "Content-Type, Authorization"
+        )
         self.end_headers()
-        self.wfile.write(json.dumps(data).encode('utf-8'))
+
+        self.wfile.write(resposta)
+
+    def do_OPTIONS(self):
+        self._send_json({"status": "ok"}, 200)
+
+    def do_GET(self):
+        self._send_json({
+            "nome": "MarketIntel AI",
+            "status": "online",
+            "endpoint": "/api",
+            "metodo_analise": "POST",
+            "campo_obrigatorio": "tema",
+        })
+
+    def do_POST(self):
+        try:
+            # 1. Verifica o tamanho da requisição.
+            tamanho = self.headers.get("Content-Length")
+
+            if tamanho is None:
+                self._send_json(
+                    {"error": "Content-Length é obrigatório."},
+                    411
+                )
+                return
+
+            try:
+                tamanho = int(tamanho)
+            except (TypeError, ValueError):
+                self._send_json(
+                    {"error": "Content-Length inválido."}, 400
+                )
+                return
+
+            if tamanho <= 0:
+                self._send_json(
+                    {"error": "Envie um JSON com o campo tema."},
+                    400
+                )
+                return
+
+            if tamanho > MAX_BODY_SIZE:
+                self._send_json(
+                    {"error": "Requisição muito grande."}, 413
+                )
+                return
+
+            # 2. Lê e valida o JSON.
+            dados = self.rfile.read(tamanho)
+
+            try:
+                body = json.loads(dados.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                self._send_json(
+                    {"error": "O corpo precisa ser um JSON válido."},
+                    400
+                )
+                return
+
+            if not isinstance(body, dict):
+                self._send_json(
+                    {"error": "O JSON precisa ser um objeto."},
+                    400
+                )
+                return
+
+            tema = limpar_texto(body.get("tema", "Geral"))
+
+            if not tema:
+                self._send_json(
+                    {"error": "Informe um tema para analisar."},
+                    400
+                )
+                return
+
+            if len(tema) > MAX_TEMA_SIZE:
+                self._send_json(
+                    {
+                        "error": (
+                            f"O tema deve ter no máximo "
+                            f"{MAX_TEMA_SIZE} caracteres."
+                        )
+                    },
+                    400
+                )
+                return
+
+            # 3. Obtém a chave secreta.
+            api_key = os.environ.get("GEMINI_API_KEY")
+
+            if not api_key:
+                self._send_json(
+                    {
+                        "error": (
+                            "GEMINI_API_KEY não configurada. "
+                            "Adicione a variável nas configurações "
+                            "do projeto na Vercel."
+                        )
+                    },
+                    500
+                )
+                return
+
+            # 4. Gera o relatório.
+            resultado = consultar_gemini(api_key, tema)
+
+            self._send_json(resultado, 200)
+
+        except RuntimeError as erro:
+            self._send_json(
+                {"error": str(erro)}, 502
+            )
+
+        except Exception:
+            # Não expõe detalhes internos ou segredos ao cliente.
+            self._send_json(
+                {"error": "Erro interno ao processar a solicitação."},
+                500
+            )
+
+    def log_message(self, format, *args):
+        # Evita registrar informações desnecessárias no log.
+        super().log_message(format, *args)
