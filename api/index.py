@@ -43,8 +43,8 @@ class handler(BaseHTTPRequestHandler):
 
             user_prompt = f"Analise as principais tendências de mercado mais recentes sobre: {tema}"
 
-            # 4. Requisição à API do Google Gemini
-            modelos = ["gemini-2.5-flash", "gemini-1.5-flash"]
+            # 4. Requisição à API do Google Gemini com os modelos atualizados
+            modelos = ["gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro-latest"]
             resposta_ia = None
             ultimo_erro = ""
 
